@@ -103,13 +103,3 @@ def t_error(t):
 
 lexer = lex.lex()
 lexer.begin("TEXT")
-
-if __name__ == "__main__":
-    import sys
-
-    # lexer.input(sys.stdin.read())
-    file = open(sys.argv[1]).read()
-    lexer.input(file)
-
-    for token in lexer:
-        print("line %d : %s (%s) " % (token.lineno, token.type, token.value))

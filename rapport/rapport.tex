@@ -1,0 +1,115 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\begin{document}
+\begin{titlepage}
+   \begin{center}
+       \vspace*{1cm}
+
+       \textbf{\huge Dumbo interpreter}
+
+            
+       \vspace{1.5cm}
+
+       \textbf{HUYLENBROECK Florent\\
+       			BOSSART Laurent}
+
+       \vfill
+            
+       Devoir pour le cours de compilation\\
+            
+       \vspace{0.8cm}
+            
+
+       UMONS\\
+       Annee academique 2019-2020
+            
+   \end{center}
+\end{titlepage}
+\newpage
+\tableofcontents
+\newpage
+\section{Introduction}
+Dans le cadre de notre cours de compilation, il nous a été demandé de créer le programme nommé \emph{"dumbo\_interpreter"}, permettant de générer facilement des fichiers contenant du texte. La génération se fait en fonction de données reçues en paramètres. Pour ce faire nous devions créer le langage \emph{dumbo}.\\
+Ce programme prend en entrée 3 paramètres :
+\begin{itemize}
+\item Un fichier data, contenant du code dumbo servant à initialiser des variables.
+\item Un fichier template, dans lequelle sera injecté les variables du fichier data, selon l'évaluation du code Dumbo contenu dans ce fichier template.
+\item Un fichier output, dans lequel sera écrit le résultat de la génération.
+\end{itemize}
+
+\newpage
+\section{Grammaire Dumbo}
+En plus d'une grammaire de base donnée dans l'énoncé du devoir, certaines fonctionnalités additionnelles nous ont été demandées. Voici la grammaire complète qui a été implémentée :
+\begin{center}
+\begin{tabular}{|lcl|}
+\hline
+$<programme>$ 					& $\rightarrow$ 	& $<txt>$\\
+								&					& $|<txt><programme>$\\
+$<programme>$ 					& $\rightarrow$ 	& $<dumbo$\_$block>$\\
+								&					& $|<dumbo$\_$block><programme>$\\
+$<txt>$							& $\rightarrow$  	& $[a-zA-Z0-9;\&<>"\_ =-.\setminus / \setminus n\setminus s:,]+$\\
+$<dumbo\_ block>$				& $\rightarrow$ 	& $\{\{<expression\_ list>\}\}$\\
+								&					& $|$ $\{\{$   $\}\}$\\
+$<expression\_ list>$ 			& $\rightarrow$     & $<expression>;<expression\_ list>$\\
+								&					& $|$ $<expression>;$\\
+$<expression>$					& $\rightarrow$ 	& $print$ $<string\_ expression>$\\
+								&					& $|$ $for$ $<variable>$ $in$ $<string\_ list>$\\
+								&					& $do$ $<expression\_ list>$ $endfor$\\
+								&					& $|$ $for$ $<variable>$ $in$ $<variable>$\\
+								&					& $do$ $<expression\_ list>$ $endfor$\\
+								&					& $|$ $<variable>:=<string\_ expression>$\\
+								&					& $|$ $<variable>:=<string\_ list>$\\
+								&					& $|$ $if$ $<boolean\_ expression>$ $do$ $<expression\_ list>$ $endif$\\
+$<string\_ expression>$ 		& $\rightarrow$ 	& $<string>$\\
+								&					& $|$ $<comparable\_ expression>$\\
+								&					& $|$ $<string\_ expression>.<string\_ expression>$\\
+$<string\_ list>$ 				& $\rightarrow$		& $(<string\_ list\_ interior>)$\\
+$<string\_ list\_ interior>$ 	& $\rightarrow$ 	& $<string>$\\
+								&					& $|$ $<string>,<string\_ list\_ interior>$ \\
+$<variable>$ 					& $\rightarrow$ 	& $[a-zA-Z0-9\_ ]$\\
+$<string>$						& $\rightarrow$		& $'[a-zA-Z0-9;\&<>"\_ =-.\setminus / \setminus n\setminus s:,]+'$\\
+$<comparable\_ expression>$ 	& $\rightarrow$		& $<variable>$\\
+								&					& $|$ $<number\_ expression>$\\
+$<number\_ expression>$ 		& $\rightarrow$ 	& $[0-9]+(.[0-9]+)?$\\
+								&					& $|$ $<number\_ expression>[+-*/]<number\_ expression>$\\
+								&					& $|$ $-<number\_ expression>$\\
+$<boolean>$						& $\rightarrow$ 	& $true$\\
+								&					& $|$ $false$\\
+								&					& $|$ $<comparable\_ expression>$ $([<>=]|!=)$ $<comparable\_ expression>$\\
+$<boolean\_ expression>$ 		& $\rightarrow$ 	& $<boolean>$\\
+								&					& $|$ $<boolean>$ $and$ $<boolean\_ expression>$\\
+								&					& $|$ $<boolean>$ $or$ $<boolean\_ expression>$\\
+\hline
+\end{tabular}
+\end{center}
+Certaines modifications ont été apportées à la grammaire de base :
+\begin{itemize}
+\item Une $<string\_ expression>$ peut maintenant comprendre une $<comparable\_ expression>$ à la place d'une $<variable>$. Cependant, une $<comparable\_ expression>$ peut contenir une $<variable>$.
+\item Étant donné qu'il nous a été demandé de gérer la division, les nombres réels sont supportés, en extension aux nombres entiers.
+\end{itemize}
+
+\newpage
+\section{Gestion des boucles \emph{for} et \emph{if}}
+Une fois les instructions booléennes correctement implementées, la gestion des boucles \emph{if} ne nous a pas semblée compliquée. Nous l'avons gérée comme pour l'assignation, la concaténation, et le print : par la construction d'un tuple $("if",boolean\_ expression,instruction\_ list)$. Lors de l'interprétation du template, si un tel tuple est rencontré et que la condition est respectée, les instructions sont exécutées récursivement par notre fonction $apply\_ function$ laquelle prend un tuple en entrée et applique l'opération définie par ce tuple.\\[.5cm]
+Pour la boucle \emph{for}, il a été nécessaire d'ajouter une fonctionnalité à notre interpréteur Dumbo : la gestion de la \emph{profondeur}. Nous avons donc redéfini la structure de données permettant de stocker nos variables : d'un dictionnaire \textbf{variables}[nom] = \emph{valeur}, nous sommes passés à un dictionnaire de dictionnaire \textbf{variables}[profondeur][nom] = \emph{valeur}.
+Ainsi, à chaque entrée dans une boucle for, la profondeur est incrémentée d'un (valeur de départ = $0$). Les valeurs de la $<string\_ list>$ sur laquelle on itère sont copiées à cette profondeur-là. Le corps de la boucle est exécuté récursivement comme pour nos autres fonctions. Ensuite, à la sortie de cette boucle, le sous-dictionnaire à ce niveau de profondeur est effacé et la profondeur est décrémentée d'un.\\[.5cm]
+Cette modification nous a amené à modifier plusieurs autres fonctions dans notre code. Par exemple, la fonction qui identifie une variable à partir d'une chaine de caractères a du être adaptée pour rechercher la variable en partant du niveau de profondeur actuel jusqu'au niveau 0, s'arrêtant à la première correspondance. L'assignation se fait maintenant de la même manière : si une variable correspondante est trouvée, une nouvelle valeur lui est assignée, sinon une variable est créée au niveau de profondeur actuel.\\[.5cm]
+Cette modification nous permet de faire tourner plusieurs boucles \emph{for} imbriquées, lesquelles peuvent utiliser le même nom de variable dans leurs corps respectifs.
+
+\newpage
+\section{Difficultés rencontrées}
+Une difficulté évidente a été de ne pas pouvoir se concerter en binôme dans la vraie vie, à cause du confinement. Mais ceci sort du cadre de cette section du rapport.\\
+La première difficulté rencontrée a été de gérer l'appel de fonctions. Nous avons trouvé la solution dans la ressource qui nous a été fournie pendant les séances de travaux pratiques sur l'analyse lexicale : \url{http://www.dabeaz.com/ply/ply.html} (C'est d'ailleurs dans cette documentation que nous avons trouvé la majorité des réponses à nos problèmes). Nous avons donc suivi cette idée de créer un tuple dont le premier élement est le nom de la fonction et les suivants sont les paramètres nécessaires à l'exécution de cette fonction. Ainsi, l'exécution récursive des fonctions devenait possible afin de résoudre d'abord les arguments avant de calculer la valeur de la fonction.\\
+La seconde difficulté rencontrée a été la gestion du \emph{for}. Nous avons essayé plusieurs alternatives avant d'en arriver à utiliser notre système de profondeur. Nous avons d'abord commencé par séparer nos variables en deux listes : \textbf{variables} et 
+\textbf{variables\_loop} mais cette solution, bien qu'au final fonctionelle pour la gestion d'une seule boucle \emph{for}, ne nous convenait pas.\\
+
+\section{Conclusion}
+Ce projet était intéressant dans le cadre de notre cours de compilation. En plus d'approfondir notre compréhension du fonctionnement d'un compilateur, il nous a permis de découvrir un type de programmation que nous n'avions pas rencontré avant. Nous sommes satisfaits des solutions que nous avons mises en place afin de résoudre les problèmes demandés.
+
+\end{document}

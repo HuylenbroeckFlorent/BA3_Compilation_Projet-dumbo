@@ -152,16 +152,3 @@ def p_boolean_TO_expression_comparator_expression(p):
 precedence = (("left", "PLUS", "MINUS"), ("left", "MULT", "DIV"), ("right", "UNARY_MINUS"))
 
 dumbo_parser = yacc.yacc(outputdir="output")
-
-if __name__ == "__main__":
-	import sys
-
-	# input = open(sys.argv[1]).read()
-	with open(sys.argv[1]) as input:
-		result = dumbo_parser.parse(input.read(), debug=True)
-
-	print(result)
-
-
-
-###########################################################

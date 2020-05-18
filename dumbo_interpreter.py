@@ -14,9 +14,7 @@ current_depth = 0
 def dumbo_interpreter(datapath, templatepath, outputpath):
 	read_data(datapath)
 	output = apply_template(templatepath)
-	if not os.path.exists("output/"):
-		os.makedirs("output/")
-	outputfile=open("output/"+outputpath, 'w')
+	outputfile=open(outputpath, 'w')
 	outputfile.write(output)
 	outputfile.close()
 
@@ -63,7 +61,6 @@ def apply_template(templatepath):
 # -logical operations (or, and)
 def apply_function(function):
 	name = function[0]
-	print function
 	
 	if name == "assign":
 		function_assign(function[1], function[2])
@@ -105,12 +102,12 @@ def function_assign(variable, value):
 	if type(value) is tuple:
 		value = apply_function(value)
 
-	#Checks if we replace a already declared variable at a lower depth
+	#Checks if we replace an already declared variable at a higher depth
 	for i in range(current_depth, -1, -1):
 		if variable in variables[i]:
 			variables[i][variable]=value
 			return ""
-	# ELse we assign it to a new variable at current depth
+	# Else we assign it to a new variable at current depth
 	variables[current_depth][variable]=value
 
 
@@ -150,13 +147,16 @@ def for_loop(elem, listname, body):
 		for instruction in body:
 			output += apply_function(instruction)
 
+	# Clear all the variables at that depth
 	variables[current_depth].clear()
+
+	# Decrement the current depth since we exit a loop
 	current_depth -=1
 
 	return output
 
 # Function that manages if conditions (if condition then body else body_else endif)
-def if_condition(condition, body, body_else=None):
+def if_condition(condition, body):
 	if type(condition) is tuple:
 		condition = apply_function(condition)
 
@@ -165,11 +165,6 @@ def if_condition(condition, body, body_else=None):
 	if condition:
 		for instruction in body:
 			output += apply_function(instruction)
-
-	else:
-		if body_else != None:
-			for instruction in body_else:
-				output += apply_function(instruction)
 
 	return output
 
